@@ -1,6 +1,6 @@
-# DotRun
+# LineRun
 
-DotRun is an isolated Python execution environment ("sandbox") tailored specifically for autonomous AI agents. It provides a clean, path-traversal-protected interface for writing code, managing dependencies via virtual environments, and executing Python scripts safely.
+LineRun is an isolated Python execution environment ("sandbox") tailored specifically for autonomous AI agents. It provides a clean, path-traversal-protected interface for writing code, managing dependencies via virtual environments, and executing Python scripts safely.
 
 ## Features
 
@@ -12,20 +12,20 @@ DotRun is an isolated Python execution environment ("sandbox") tailored specific
 
 ## Installation
 
-DotRun is built using standard Python libraries and can be packaged via PyPI. 
+LineRun is built using standard Python libraries and can be packaged via PyPI. 
 
 ```bash
 git clone 
-cd DotRun
+cd LineRun
 pip install -e .
 ```
 
-If you intend to run this in a production environment with untrusted AI code, it is **highly recommended** to install and run DotRun inside an isolated Docker container. Directory separation alone does not prevent malicious OS-level system calls or network access.
+If you intend to run this in a production environment with untrusted AI code, it is **highly recommended** to install and run LineRun inside an isolated Docker container. Directory separation alone does not prevent malicious OS-level system calls or network access.
 
 ## Quick Start
 
 ```python
-from dotrun.main import Code_Runner
+from linerun.main import Code_Runner
 
 # 1. Initialize the sandbox
 # This automatically creates the venv

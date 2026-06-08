@@ -1,7 +1,7 @@
 import os
 import shutil
 import pytest
-from dotrun.main import Code_Runner
+from linerun.main import Code_Runner
 @pytest.fixture
 def runner():
     test_base = "./test"
