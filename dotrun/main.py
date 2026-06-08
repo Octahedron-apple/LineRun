@@ -6,7 +6,7 @@ import subprocess
 def Is_Nixos():
     if os.path.exists("/etc/os-release"):
         with open("/etc/os-release", "r") as f:
-            if "ID=nixos" in f.read():
+            if "nixos" in f.read().lower():
                 return True
     if os.path.exists("/etc/nixos"):
         return True
@@ -84,7 +84,21 @@ class Code_Runner:
                 capture_output=True
             )
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to remove module {Name}: {e.stderr.decode('utf-8')}") 
-      
-    
-        
+            raise RuntimeError(f"Failed to remove module {Name}: {e.stderr.decode('utf-8')}")
+    def Run_Code(self, Name):
+        file_path = self.get_safe_path(Name)
+        python_path = os.path.join(self.Venv_Path, "bin", "python")
+        if self.is_nixos:
+            command = ["nix-shell", "--run", f"{python_path} {file_path}"]
+        else:
+            command = [python_path, file_path]  
+        try:
+            result = subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            return result.stdout
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Failed to run code: {e.stderr}")
