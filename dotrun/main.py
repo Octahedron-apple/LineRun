@@ -45,3 +45,24 @@ class Code_Runner:
         file_path = self.get_safe_path(Name)
         if os.path.exists(file_path) and os.path.isfile(file_path):
             os.remove(file_path)
+    def Add_Module(self, Name):
+        PATH = os.path.join(self.Venv_Path, "bin", "pip")
+        try:
+            subprocess.run(
+                [PATH, "install", Name],
+                check=True,
+                capture_output=True
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Failed to install module {Name}: {e.stderr.decode('utf-8')}")
+    def List_Modules(self):
+        PATH = os.path.join(self.Venv_Path, "bin", "pip")
+        try:
+            subprocess.run(
+                [PATH, "list"],
+                check=True,
+                capture_output=True
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Failed to list modules: {e.stderr.decode('utf-8')}")
+        
