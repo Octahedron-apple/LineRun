@@ -3,10 +3,20 @@ import re
 import sys
 import subprocess
 
+def Is_Nixos():
+    if os.path.exists("/etc/os-release"):
+        with open("/etc/os-release", "r") as f:
+            if "ID=nixos" in f.read():
+                return True
+    if os.path.exists("/etc/nixos"):
+        return True
+    return False
+
 class Code_Runner:
     def __init__(self, Path, Venv_Path):
         self.Path = Path
         self.Venv_Path = Venv_Path   
+        self.is_nixos = Is_Nixos()
         if os.path.exists(Path) and os.listdir(Path):
             raise ValueError(f"Directory '{Path}' is not empty.")       
         try:
@@ -65,4 +75,16 @@ class Code_Runner:
             )
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to list modules: {e.stderr.decode('utf-8')}")
+    def Remove_Module(self, Name):
+        PATH = os.path.join(self.Venv_Path, "bin", "pip")
+        try:
+            subprocess.run(
+                [PATH, "remove", Name],
+                check=True,
+                capture_output=True
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Failed to remove module {Name}: {e.stderr.decode('utf-8')}") 
+      
+    
         
