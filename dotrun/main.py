@@ -79,7 +79,7 @@ class Code_Runner:
         PATH = os.path.join(self.Venv_Path, "bin", "pip")
         try:
             subprocess.run(
-                [PATH, "remove", Name],
+                [PATH, "uninstall", "-y", Name],
                 check=True,
                 capture_output=True
             )
