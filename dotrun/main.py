@@ -102,3 +102,25 @@ class Code_Runner:
             return result.stdout
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to run code: {e.stderr}")
+    def Read_File(self, Name):
+        file_path = self.get_safe_path(Name)
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File {Name} does not exist.")
+        with open(file_path, 'r') as f:
+            return f.read()
+    def Write_File(self, Name, Content):
+        file_path = self.get_safe_path(Name)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, 'w') as f:
+            f.write(Content)
+    def Replace_In_File(self, Name, TargetContent, ReplacementContent):
+        file_path = self.get_safe_path(Name)
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File {Name} does not exist.")  
+        with open(file_path, 'r') as f:
+            content = f.read()      
+        if TargetContent not in content:
+            raise ValueError(f"Target content not found in {Name}. The AI must provide an exact match.")     
+        new_content = content.replace(TargetContent, ReplacementContent, 1) 
+        with open(file_path, 'w') as f:
+            f.write(new_content)
