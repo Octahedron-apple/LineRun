@@ -1,13 +1,23 @@
 import os
 import re
+import sys
+import subprocess
 
 class Code_Runner:
-    def __init__(self, Path):
+    def __init__(self, Path, Venv_Path):
         self.Path = Path
+        self.Venv_Path = Venv_Path   
         if os.path.exists(Path) and os.listdir(Path):
-            raise ValueError(f"Directory '{Path}' is not empty.")
-
-    def _get_safe_path(self, Name):
+            raise ValueError(f"Directory '{Path}' is not empty.")       
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "venv", self.Venv_Path],
+                check=True,
+                capture_output=True
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Failed to create virtual environment: {e.stderr.decode('utf-8')}")
+    def get_safe_path(self, Name):
         if os.path.isabs(Name):
             raise ValueError("Input must be a relative path.")
         base = os.path.abspath(self.Path)
@@ -15,13 +25,11 @@ class Code_Runner:
         if not (target == base or target.startswith(base + os.sep)):
             raise ValueError("Path traversal is not allowed.")
         return target
-
     def Add_File(self, Name):
-        file_path = self._get_safe_path(Name)
+        file_path = self.get_safe_path(Name)
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w'):
             pass
-
     def All_files(self, regex=None):
         all_files = []
         pattern = re.compile(regex) if regex else None
@@ -33,8 +41,7 @@ class Code_Runner:
                 if pattern is None or pattern.search(rel_path):
                     all_files.append(rel_path)
         return all_files
-
     def Delete_File(self, Name):
-        file_path = self._get_safe_path(Name)
+        file_path = self.get_safe_path(Name)
         if os.path.exists(file_path) and os.path.isfile(file_path):
             os.remove(file_path)
