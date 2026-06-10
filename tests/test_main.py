@@ -35,10 +35,18 @@ def test_all_files(runner):
     txt_files = runner.All_files(r"\.txt$")
     assert len(txt_files) == 2
 def test_read_write_replace(runner):
-    runner.Write_File("test.txt", "hello world")
-    assert runner.Read_File("test.txt") == "hello world"
-    runner.Replace_In_File("test.txt", "world", "universe")
-    assert runner.Read_File("test.txt") == "hello universe"
+    runner.Write_File("test.txt", "hello world\nhello world\nhello world")
+    assert "hello world" in runner.Read_File("test.txt")
+    runner.Replace_In_File("test.txt", "world", "universe", EndLine=1)
+    assert runner.Read_File("test.txt") == "hello universe\nhello world\nhello world"
+    runner.Replace_In_File("test.txt", "world", "galaxy", StartLine=3, EndLine=3)
+    assert runner.Read_File("test.txt") == "hello universe\nhello world\nhello galaxy"
+    runner.Write_File("test2.txt", "a b c\na b c")
+    runner.Replace_In_File("test2.txt", "b", "z", AllowMultiple=True)
+    assert runner.Read_File("test2.txt") == "a z c\na z c"
+    runner.Write_File("test3.txt", "duplicate duplicate")
+    with pytest.raises(ValueError, match="Found 2 occurrences"):
+        runner.Replace_In_File("test3.txt", "duplicate", "single")
 def test_run_code(runner):
     runner.Write_File("run_test.py", "print('success')")
     out = runner.Run_Code("run_test.py")

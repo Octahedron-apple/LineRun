@@ -116,14 +116,21 @@ class Code_Runner:
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as f:
             f.write(Content)
-    def Replace_In_File(self, Name, TargetContent, ReplacementContent):
+    def Replace_In_File(self, Name, TargetContent, ReplacementContent, StartLine=1, EndLine=None, AllowMultiple=False):
         file_path = self.get_safe_path(Name)
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File {Name} does not exist.")  
         with open(file_path, 'r') as f:
-            content = f.read()      
-        if TargetContent not in content:
-            raise ValueError(f"Target content not found in {Name}. The AI must provide an exact match.")     
-        new_content = content.replace(TargetContent, ReplacementContent, 1) 
+            lines = f.readlines() 
+        if EndLine is None or EndLine > len(lines):
+            EndLine = len(lines)  
+        range_content = "".join(lines[StartLine-1:EndLine])
+        if TargetContent not in range_content:
+            raise ValueError(f"Target content not found between lines {StartLine} and {EndLine}.")
+        occurrences = range_content.count(TargetContent)
+        if occurrences > 1 and not AllowMultiple:
+            raise ValueError(f"Found {occurrences} occurrences of TargetContent. Specify AllowMultiple=True to replace all, or narrow StartLine/EndLine.") 
+        new_range_content = range_content.replace(TargetContent, ReplacementContent, -1 if AllowMultiple else 1)
+        new_content = "".join(lines[:StartLine-1]) + new_range_content + "".join(lines[EndLine:])
         with open(file_path, 'w') as f:
             f.write(new_content)
