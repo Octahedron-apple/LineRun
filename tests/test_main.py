@@ -42,11 +42,15 @@ def test_read_write_replace(runner):
 def test_run_code(runner):
     runner.Write_File("run_test.py", "print('success')")
     out = runner.Run_Code("run_test.py")
-    assert "success" in out
+    assert "success" in out["stdout"]
+    assert out["exit_code"] == 0
 def test_modules(runner):
     runner.Add_Module("six")
     runner.Write_File("test_six.py", "import six\nprint('six loaded')")
     out = runner.Run_Code("test_six.py")
-    assert "six loaded" in out
-    runner.List_Modules()
+    assert "six loaded" in out["stdout"]
+    modules = runner.List_Modules()
+    assert modules is not None
+    assert "six" in modules
+    
     runner.Remove_Module("six")

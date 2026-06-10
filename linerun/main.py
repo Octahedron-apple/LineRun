@@ -68,13 +68,15 @@ class Code_Runner:
     def List_Modules(self):
         PATH = os.path.join(self.Venv_Path, "bin", "pip")
         try:
-            subprocess.run(
+            result = subprocess.run(
                 [PATH, "list"],
                 check=True,
-                capture_output=True
+                capture_output=True,
+                text=True
             )
+            return result.stdout
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to list modules: {e.stderr.decode('utf-8')}")
+            raise RuntimeError(f"Failed to list modules: {e.stderr}")
     def Remove_Module(self, Name):
         PATH = os.path.join(self.Venv_Path, "bin", "pip")
         try:
@@ -92,16 +94,17 @@ class Code_Runner:
             command = ["nix-shell", "--run", f"{python_path} {file_path}"]
         else:
             command = [python_path, file_path]  
-        try:
-            result = subprocess.run(
-                command,
-                check=True,
-                capture_output=True,
-                text=True
-            )
-            return result.stdout
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to run code: {e.stderr}")
+        
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True
+        )
+        return {
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "exit_code": result.returncode
+        }
     def Read_File(self, Name):
         file_path = self.get_safe_path(Name)
         if not os.path.exists(file_path):
