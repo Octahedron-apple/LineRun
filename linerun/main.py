@@ -98,6 +98,7 @@ class Code_Runner:
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to remove module {Name}: {e.stderr.decode('utf-8')}")
     def Run_Code(self, Name):
+        import threading
         file_path = self.get_safe_path(Name)
         python_path = os.path.join(self.Venv_Path, "bin", "python")
         if self.is_nixos:
@@ -106,25 +107,65 @@ class Code_Runner:
         else:
             command = [python_path, file_path]  
         
+        process = subprocess.Popen(
+            command,
+            cwd=self.Path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        
+        limit_bytes = 1024 * 1024  # 1MB
+        out_data = bytearray()
+        err_data = bytearray()
+        
+        def read_stream(stream, buffer):
+            while True:
+                chunk = stream.read(4096)
+                if not chunk:
+                    break
+                buffer.extend(chunk)
+                if len(buffer) > limit_bytes:
+                    try:
+                        process.terminate()
+                    except Exception:
+                        pass
+                    break
+                    
+        t_out = threading.Thread(target=read_stream, args=(process.stdout, out_data))
+        t_err = threading.Thread(target=read_stream, args=(process.stderr, err_data))
+        t_out.start()
+        t_err.start()
+        
+        timeout_occurred = False
         try:
-            result = subprocess.run(
-                command,
-                cwd=self.Path,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            return {
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "exit_code": result.returncode
-            }
-        except subprocess.TimeoutExpired as e:
-            return {
-                "stdout": isinstance(e.stdout, bytes) and e.stdout.decode('utf-8', errors='ignore') or e.stdout or "",
-                "stderr": f"Execution timed out after 30 seconds.\n{isinstance(e.stderr, bytes) and e.stderr.decode('utf-8', errors='ignore') or e.stderr or ''}",
-                "exit_code": 124
-            }
+            process.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            process.terminate()
+            process.wait()
+            timeout_occurred = True
+            
+        t_out.join()
+        t_err.join()
+        
+        stdout_str = out_data.decode('utf-8', errors='replace')
+        stderr_str = err_data.decode('utf-8', errors='replace')
+        
+        if len(out_data) > limit_bytes:
+            stdout_str += "\n...[Output truncated due to excessive length]..."
+        if len(err_data) > limit_bytes:
+            stderr_str += "\n...[Output truncated due to excessive length]..."
+            
+        if timeout_occurred:
+            stderr_str += "\nExecution timed out after 30 seconds."
+            exit_code = 124
+        else:
+            exit_code = process.returncode
+            
+        return {
+            "stdout": stdout_str,
+            "stderr": stderr_str,
+            "exit_code": exit_code
+        }
     def Read_File(self, Name):
         file_path = self.get_safe_path(Name)
         if not os.path.exists(file_path):
