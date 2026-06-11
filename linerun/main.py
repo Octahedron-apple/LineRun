@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import subprocess
+import shlex
 
 def Is_Nixos():
     if os.path.exists("/etc/os-release"):
@@ -30,9 +31,11 @@ class Code_Runner:
     def get_safe_path(self, Name):
         if os.path.isabs(Name):
             raise ValueError("Input must be a relative path.")
-        base = os.path.abspath(self.Path)
-        target = os.path.abspath(os.path.join(base, Name))
-        if not (target == base or target.startswith(base + os.sep)):
+        if not Name:
+            raise ValueError("Path cannot be empty.")
+        base = os.path.realpath(self.Path)
+        target = os.path.realpath(os.path.join(base, Name))
+        if not target.startswith(base + os.sep):
             raise ValueError("Path traversal is not allowed.")
         return target
     def Add_File(self, Name):
@@ -42,7 +45,10 @@ class Code_Runner:
             pass
     def All_files(self, regex=None):
         all_files = []
-        pattern = re.compile(regex) if regex else None
+        try:
+            pattern = re.compile(regex) if regex else None
+        except re.error as e:
+            raise ValueError(f"Invalid regex: {e}")
         if not os.path.exists(self.Path):
             return []
         for root, _, files in os.walk(self.Path):
@@ -56,6 +62,8 @@ class Code_Runner:
         if os.path.exists(file_path) and os.path.isfile(file_path):
             os.remove(file_path)
     def Add_Module(self, Name):
+        if Name.startswith("-"):
+            raise ValueError("Package name cannot start with a hyphen.")
         PATH = os.path.join(self.Venv_Path, "bin", "pip")
         try:
             subprocess.run(
@@ -78,6 +86,8 @@ class Code_Runner:
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to list modules: {e.stderr}")
     def Remove_Module(self, Name):
+        if Name.startswith("-"):
+            raise ValueError("Package name cannot start with a hyphen.")
         PATH = os.path.join(self.Venv_Path, "bin", "pip")
         try:
             subprocess.run(
@@ -91,20 +101,30 @@ class Code_Runner:
         file_path = self.get_safe_path(Name)
         python_path = os.path.join(self.Venv_Path, "bin", "python")
         if self.is_nixos:
-            command = ["nix-shell", "--run", f"{python_path} {file_path}"]
+            shell_nix_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "shell.nix"))
+            command = ["nix-shell", shell_nix_path, "--run", f"{shlex.quote(python_path)} {shlex.quote(file_path)}"]
         else:
             command = [python_path, file_path]  
         
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True
-        )
-        return {
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "exit_code": result.returncode
-        }
+        try:
+            result = subprocess.run(
+                command,
+                cwd=self.Path,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            return {
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "exit_code": result.returncode
+            }
+        except subprocess.TimeoutExpired as e:
+            return {
+                "stdout": isinstance(e.stdout, bytes) and e.stdout.decode('utf-8', errors='ignore') or e.stdout or "",
+                "stderr": f"Execution timed out after 30 seconds.\n{isinstance(e.stderr, bytes) and e.stderr.decode('utf-8', errors='ignore') or e.stderr or ''}",
+                "exit_code": 124
+            }
     def Read_File(self, Name):
         file_path = self.get_safe_path(Name)
         if not os.path.exists(file_path):
@@ -122,6 +142,7 @@ class Code_Runner:
             raise FileNotFoundError(f"File {Name} does not exist.")  
         with open(file_path, 'r') as f:
             lines = f.readlines() 
+        StartLine = max(1, StartLine)
         if EndLine is None or EndLine > len(lines):
             EndLine = len(lines)  
         range_content = "".join(lines[StartLine-1:EndLine])
