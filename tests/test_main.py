@@ -5,103 +5,125 @@ from unittest.mock import patch
 from linerun.main import Code_Runner
 
 @pytest.fixture
-def runner(tmp_path):
-    sandbox_dir = tmp_path / "sandbox"
-    venv_dir = tmp_path / "venv"
-    os.makedirs(sandbox_dir, exist_ok=True)
-    r = Code_Runner(Path=str(sandbox_dir), Venv_Path=str(venv_dir))
+def Runner(tmp_path):
+    Sandbox_Dir = tmp_path / "sandbox"
+    Venv_Dir = tmp_path / "venv"
+    os.makedirs(Sandbox_Dir, exist_ok=True)
+    r = Code_Runner(Path=str(Sandbox_Dir), Venv_Path=str(Venv_Dir))
     yield r
 
-def test_get_safe_path(runner, tmp_path):
-    safe = runner.get_safe_path("test.py")
-    assert safe == os.path.realpath(os.path.join(runner.Path, "test.py"))
+def test_Get_Safe_Path(Runner, tmp_path):
+    Safe = Runner.Get_Safe_Path("test.py")
+    assert Safe == os.path.realpath(os.path.join(Runner.Path, "test.py"))
     with pytest.raises(ValueError):
-        runner.get_safe_path("/absolute/path")
+        Runner.Get_Safe_Path("/absolute/path")
     with pytest.raises(ValueError):
-        runner.get_safe_path("../outside.py")
+        Runner.Get_Safe_Path("../outside.py")
         
     # Symlink Test
-    outside_dir = tmp_path / "outside"
-    os.makedirs(outside_dir, exist_ok=True)
-    outside_file = outside_dir / "secret.txt"
-    with open(outside_file, 'w') as f:
+    Outside_Dir = tmp_path / "outside"
+    os.makedirs(Outside_Dir, exist_ok=True)
+    Outside_File = Outside_Dir / "secret.txt"
+    with open(Outside_File, 'w') as f:
         f.write("secret")
     
-    symlink_path = os.path.join(runner.Path, "symlink")
-    os.symlink(str(outside_dir), symlink_path)
+    Symlink_Path = os.path.join(Runner.Path, "symlink")
+    os.symlink(str(Outside_Dir), Symlink_Path)
     
     with pytest.raises(ValueError):
-        runner.get_safe_path("symlink/secret.txt")
+        Runner.Get_Safe_Path("symlink/secret.txt")
 
-def test_add_delete_file(runner):
-    runner.Add_File("script.py")
-    assert os.path.exists(os.path.join(runner.Path, "script.py"))
-    runner.Delete_File("script.py")
-    assert not os.path.exists(os.path.join(runner.Path, "script.py"))
+def test_Add_Delete_File(Runner):
+    Runner.Add_File("script.py")
+    assert os.path.exists(os.path.join(Runner.Path, "script.py"))
+    Runner.Delete_File("script.py")
+    assert not os.path.exists(os.path.join(Runner.Path, "script.py"))
 
-def test_all_files(runner):
-    runner.Add_File("a.txt")
-    runner.Add_File("b.py")
-    runner.Add_File("dir/c.txt")
-    files = runner.All_files()
-    assert len(files) == 3
-    txt_files = runner.All_files(r"\.txt$")
-    assert len(txt_files) == 2
+def test_All_Files(Runner):
+    Runner.Add_File("a.txt")
+    Runner.Add_File("b.py")
+    Runner.Add_File("dir/c.txt")
+    Files = Runner.All_Files()
+    assert len(Files) == 3
+    Txt_Files = Runner.All_Files(r"\.txt$")
+    assert len(Txt_Files) == 2
     
-    with pytest.raises(ValueError, match="Invalid regex"):
-        runner.All_files(r"[A-Z")
+    with pytest.raises(ValueError, match="Invalid Regex"):
+        Runner.All_Files(r"[A-Z")
 
-def test_read_write_replace(runner):
-    runner.Write_File("test.txt", "hello world\nhello world\nhello world")
-    assert "hello world" in runner.Read_File("test.txt")
-    runner.Replace_In_File("test.txt", "world", "universe", EndLine=1)
-    assert runner.Read_File("test.txt") == "hello universe\nhello world\nhello world"
-    runner.Replace_In_File("test.txt", "world", "galaxy", StartLine=3, EndLine=3)
-    assert runner.Read_File("test.txt") == "hello universe\nhello world\nhello galaxy"
-    runner.Write_File("test2.txt", "a b c\na b c")
-    runner.Replace_In_File("test2.txt", "b", "z", AllowMultiple=True)
-    assert runner.Read_File("test2.txt") == "a z c\na z c"
-    runner.Write_File("test3.txt", "duplicate duplicate")
-    with pytest.raises(ValueError, match="Found 2 occurrences"):
-        runner.Replace_In_File("test3.txt", "duplicate", "single")
+def test_Read_Write_Replace(Runner):
+    Runner.Write_File("test.txt", "hello world\nhello world\nhello world")
+    assert "hello world" in Runner.Read_File("test.txt")
+    Runner.Replace_In_File("test.txt", "world", "universe", End_Line=1)
+    assert Runner.Read_File("test.txt") == "hello universe\nhello world\nhello world"
+    Runner.Replace_In_File("test.txt", "world", "galaxy", Start_Line=3, End_Line=3)
+    assert Runner.Read_File("test.txt") == "hello universe\nhello world\nhello galaxy"
+    Runner.Write_File("test2.txt", "a b c\na b c")
+    Runner.Replace_In_File("test2.txt", "b", "z", Allow_Multiple=True)
+    assert Runner.Read_File("test2.txt") == "a z c\na z c"
+    Runner.Write_File("test3.txt", "duplicate duplicate")
+    with pytest.raises(ValueError, match="Found 2 Occurrences"):
+        Runner.Replace_In_File("test3.txt", "duplicate", "single")
         
-    # Negative StartLine test
-    runner.Write_File("test4.txt", "line1\nline2\nline3\nline4")
-    runner.Replace_In_File("test4.txt", "line1", "new1", StartLine=-5, EndLine=2)
-    assert runner.Read_File("test4.txt") == "new1\nline2\nline3\nline4"
+    # Negative Start_Line test
+    Runner.Write_File("test4.txt", "line1\nline2\nline3\nline4")
+    Runner.Replace_In_File("test4.txt", "line1", "new1", Start_Line=-5, End_Line=2)
+    assert Runner.Read_File("test4.txt") == "new1\nline2\nline3\nline4"
 
-def test_run_code(runner, tmp_path):
-    runner.Write_File("run_test.py", "print('success')")
-    out = runner.Run_Code("run_test.py")
-    assert "success" in out["stdout"]
-    assert out["exit_code"] == 0
+def test_Run_Code(Runner, tmp_path):
+    Runner.Write_File("run_test.py", "print('success')")
+    Out = Runner.Run_Code("run_test.py")
+    assert "success" in Out["stdout"]
+    assert Out["Exit_Code"] == 0
     
     # Environment Isolation Test: relative paths should resolve to sandbox
-    runner.Write_File("iso_test.py", "open('data.json', 'w').write('isolated')")
-    runner.Run_Code("iso_test.py")
-    assert os.path.exists(os.path.join(runner.Path, "data.json"))
+    Runner.Write_File("iso_test.py", "open('data.json', 'w').write('isolated')")
+    Runner.Run_Code("iso_test.py")
+    assert os.path.exists(os.path.join(Runner.Path, "data.json"))
     
     # Shell Injection Test
-    runner.Write_File("echo.py", "print('hacked')")
-    runner.Write_File("script.py; python echo.py", "print('safe')")
-    out = runner.Run_Code("script.py; python echo.py")
-    assert "hacked" not in out["stdout"]
+    Runner.Write_File("echo.py", "print('hacked')")
+    Runner.Write_File("script.py; python echo.py", "print('Safe')")
+    Out = Runner.Run_Code("script.py; python echo.py")
+    assert "hacked" not in Out["stdout"]
 
 @patch('linerun.main.subprocess.run')
-def test_modules(mock_run, runner):
-    mock_run.return_value.stdout = "six"
-    mock_run.return_value.returncode = 0
+def test_Modules(Mock_Run, Runner):
+    Mock_Run.return_value.stdout = "six"
+    Mock_Run.return_value.returncode = 0
     
-    runner.Add_Module("six")
+    Runner.Add_Module("six")
     # Verify pip install was called
-    args, kwargs = mock_run.call_args
+    args, kwargs = Mock_Run.call_args
     assert "install" in args[0]
     assert "six" in args[0]
     
-    modules = runner.List_Modules()
-    assert modules == "six"
+    Modules = Runner.List_Modules()
+    assert Modules == "six"
     
-    runner.Remove_Module("six")
-    args, kwargs = mock_run.call_args
+    Runner.Remove_Module("six")
+    args, kwargs = Mock_Run.call_args
     assert "uninstall" in args[0]
     assert "six" in args[0]
+
+def test_Git_Commit_And_Reset(Runner):
+    Runner.Write_File("file1.txt", "v1")
+    Hash_1 = Runner.Commit("First commit")
+    
+    Runner.Write_File("file1.txt", "v2")
+    Runner.Write_File("file2.txt", "new file")
+    Hash_2 = Runner.Commit("Second commit")
+    
+    assert Runner.Read_File("file1.txt") == "v2"
+    assert "file2.txt" in Runner.All_Files()
+    assert Runner.Commit_Hashes == [Hash_1, Hash_2]
+    
+    Runner.Reset(Hash_1)
+    
+    assert Runner.Read_File("file1.txt") == "v1"
+    assert "file2.txt" not in Runner.All_Files()
+    assert Runner.Commit_Hashes == [Hash_1]
+    
+    Runner.Write_File("file1.txt", "dirty")
+    Runner.Reset()
+    assert Runner.Read_File("file1.txt") == "v1"
